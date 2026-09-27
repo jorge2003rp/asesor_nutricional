@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asesor Nutricional Personal</title>
+    <!-- Librería para convertir el Markdown que devuelve el LLM en HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #eef3ee;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2e5e3a;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2e5e3a;
+        }
+
+        label .optional {
+            font-weight: normal;
+            color: #666;
+        }
+
+        select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            background-color: #4caf50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #43a047;
+        }
+
+        button:disabled {
+            background-color: #9ccc9e;
+            cursor: wait;
+        }
+
+        #plan {
+            margin-top: 20px;
+            padding: 20px;
+            border-left: 4px solid #4caf50;
+            background-color: #f6faf6;
+            display: none;
+        }
+
+        #plan h1, #plan h2, #plan h3 {
+            color: #2e5e3a;
+            text-align: left;
+        }
+
+        #plan table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        #plan th, #plan td {
+            border: 1px solid #ddd;
+            padding: 6px;
+        }
+
+        .error {
+            color: #e74c3c;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+            color: #2e5e3a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Asesor Nutricional Personal</h1>
+        <p class="subtitle">Obtén un plan nutricional personalizado basado en tu edad, nivel de actividad y preferencias alimentarias.</p>
+
+        <form id="planForm">
+            <div class="form-group">
+                <label for="edad">Edad:</label>
+                <select id="edad" name="edad" required>
+                    <option value="">Selecciona tu edad</option>
+                    {% for edad in edades %}
+                    <option value="{{ edad }}">{{ edad }} años</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="nivel_actividad">Nivel de Actividad:</label>
+                <select id="nivel_actividad" name="nivel_actividad" required>
+                    <option value="">Selecciona tu nivel de actividad</option>
+                    {% for valor, texto in niveles_actividad %}
+                    <option value="{{ valor }}">{{ texto }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="comidas_favoritas">Comidas Favoritas:</label>
+                <textarea id="comidas_favoritas" name="comidas_favoritas" placeholder="Lista algunas de tus comidas favoritas... (ej: pollo, arroz, brócoli, salmón)" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="restricciones">Restricciones Dietéticas o Alergias: <span class="optional">(Opcional)</span></label>
+                <textarea id="restricciones" name="restricciones" placeholder="Lista cualquier alergia o restricción dietética... (ej: intolerancia a la lactosa, sin gluten, vegetariano)"></textarea>
+            </div>
+
+            <button type="submit">Generar Plan Nutricional</button>
+        </form>
+
+        <div class="loading">Generando tu plan nutricional personalizado...</div>
+        <div id="plan"></div>
+    </div>
+
+    <script>
+        document.getElementById('planForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const form = e.target;
+            const button = form.querySelector('button');
+            const loading = document.querySelector('.loading');
+            const planDiv = document.getElementById('plan');
+
+            // Mostrar loading, ocultar plan anterior
+            loading.style.display = 'block';
+            planDiv.style.display = 'none';
+            button.disabled = true;
+
+            try {
+                const response = await fetch('/plan', {
+                    method: 'POST',
+                    body: new FormData(form)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Convertir Markdown a HTML (si la librería no cargó, se muestra el texto tal cual)
+                    planDiv.innerHTML = window.marked
+                        ? marked.parse(data.plan)
+                        : data.plan.replace(/\n/g, '<br>');
+                } else {
+                    planDiv.innerHTML = '<div class="error"></div>';
+                    planDiv.firstChild.textContent = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                planDiv.innerHTML = '<div class="error">Ocurrió un error. Por favor, intenta de nuevo.</div>';
+            } finally {
+                planDiv.style.display = 'block';
+                loading.style.display = 'none';
+                button.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
